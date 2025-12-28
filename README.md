@@ -77,9 +77,11 @@ The first time the plugin runs, it creates a `.fieldignore` file in your project
 **Example `.fieldignore`:**
 ```text
 # Ignore Path
-addons/
-src
-scenes/test
+.godot/
+.vs/
+.vscode/
+res://addons/
+src/
 ```
 
 ## 🔍 Manual Validation

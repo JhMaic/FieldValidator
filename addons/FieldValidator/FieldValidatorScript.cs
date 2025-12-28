@@ -141,22 +141,27 @@ public partial class FieldValidatorScript : EditorScript
                 if (string.IsNullOrEmpty(line) || line.StartsWith("#"))
                     continue;
 
-                // Ensure res:// prefix for consistency
                 if (!line.StartsWith("res://"))
                     line = "res://" + line;
 
+                line = line.Replace("\\", "/");
                 _ignoredPaths.Add(line);
             }
     }
 
     private static bool IsPathIgnored(string path)
     {
+        path = path.Replace("\\", "/");
         foreach (var ignore in _ignoredPaths)
         {
             if (path == ignore)
                 return true;
+
             var folderIgnore = ignore.EndsWith("/") ? ignore : ignore + "/";
             if (path.StartsWith(folderIgnore))
+                return true;
+
+            if (!ignore.EndsWith("/") && path.StartsWith(ignore + "/"))
                 return true;
         }
 
