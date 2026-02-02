@@ -42,7 +42,7 @@ using FieldValidator;
 public partial class MyPlayer : Node
 {
     // If this is null in the Inspector, the game will refuse to start.
-    [Export, MustSet] 
+    [Export] [MustSet] 
     public PackedScene BulletPrefab { get; set; }
 
     [Export, MustSet]
@@ -59,7 +59,7 @@ Use `[MemberMustSet]` to ensure a collection is not null **AND** that none of it
 public partial class Inventory : Resource
 {
     // Fails if the array is null OR if any item inside calls IsInstanceValid() == false
-    [Export, MemberMustSet]
+    [Export] [MustSet] [MemberMustSet]
     public Godot.Collections.Array<ItemResource> StartingItems { get; set; }
 }
 
