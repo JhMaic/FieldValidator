@@ -45,7 +45,7 @@ public partial class MyPlayer : Node
     [Export] [MustSet] 
     public PackedScene BulletPrefab { get; set; }
 
-    [Export, MustSet]
+    [Export] [MustSet] 
     public NodePath EnemyPath; 
 }
 
