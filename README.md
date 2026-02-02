@@ -1,62 +1,80 @@
-﻿# FieldValidator for Godot (C#)
+﻿
+# FieldValidator for Godot (C#)
 
-**FieldValidator** is a lightweight utility for Godot 4.x C# projects. It ensures that your `[Export]` fields are properly assigned in the Inspector before the game starts, shifting potential runtime crashes to a pre-run validation phase.
+**A strict, pre-run dependency checker for Godot C#.**
 
-If a mandatory field is left empty, the plugin blocks the build and prints a detailed error message in the console, identifying the specific Scene, Node, or Resource.
+FieldValidator ensures that all your critical `[Export]` fields are assigned before the game starts. It scans your Resources and Scenes, enforcing assignments via attributes, and prevents the project from running if dependencies are missing.
 
-## 💡 Why Use This?
+## Why use this?
 
-In standard Godot development, scripts often rely on other nodes or resources. This plugin promotes a safer and cleaner architecture:
+Godot's built-in `_GetConfigurationWarnings` is powerful but often overkill for simple null checks:
 
-1.  **Explicit Dependency Management**: By using `[Export]` combined with `[MustSet]`, you make node dependencies explicit in the Inspector. Anyone looking at the scene instantly knows exactly what a script needs to function.
-2.  **Eliminate Brittle `GetNode()` Calls**: Instead of using `GetNode("Path/To/Node")` or `%UniqueName` in `_Ready()`—which can fail silently or crash the game if the tree structure changes—you can assign references via the Inspector and let this plugin guarantee they are valid before the code ever runs.
-3.  **Fail Fast**: Catching a missing reference at build-time is much cheaper than debugging a `NullReferenceException` 10 minutes into a playtest.
-## ✨ Features
+1. **Boilerplate:** Writing a unique validation method for every single field is tedious.
+2. **The `[Tool]` Virus:** To see warnings in the editor, your scripts must use `[Tool]`. This forces *every* dependency (other Nodes/Resources) to also be `[Tool]`, which can break complex logic or cause instantiation issues (see [Godot Issue #80298](https://github.com/godotengine/godot/issues/80298)).
 
-- **Pre-run Validation**: Automatically scans your project when you click "Play".
-- **Scene & Resource Support**: Validates nodes within `.tscn` files and properties in `.tres`/`.res` files.
-- **Recursive Checking**: Deep-scans nested Resources and Child Nodes.
-- **Ignore System**: Easily exclude specific folders (like third-party addons) via a `.fieldignore` file.
+**FieldValidator solves this.** It runs purely as an Editor Plugin. Your runtime scripts remain clean, standard C# classes—no `[Tool]` required.
 
-> **Note:** The plugin performs a **global check** of the entire project every time you run the game, regardless of which specific scene you are launching. This ensures project-wide consistency but may take a moment in very large projects (use `.fieldignore` to optimize).
+## Key Features
 
-## 🚀 Installation
+* **Zero Runtime Overhead:** Validation happens only when you click "Build/Play".
+* **Decoupled Logic:** Works on any Node or Resource, regardless of whether it uses `[Tool]`.
+* **Build Blocking:** If a required field is null, the build is cancelled immediately, preventing runtime crashes.
+* **Recursive Scanning:** Checks Scenes, Nodes, and even Resources nested inside other Resources.
+* **Collection Support:** Validates that arrays/lists are not only assigned but that their *contents* are not null.
 
-1. Copy the `addons/FieldValidator` folder into your project's `res://addons/` directory.
-2. Build your C# solution in Godot.
-3. Go to **Project -> Project Settings -> Plugins** and enable **FieldValidator**.
+## Installation
 
-## 🛠 Usage
+1. Copy the `FieldValidator` folder into your project's `addons/` directory.
+2. Go to **Project -> Project Settings -> Plugins** and enable **FieldValidator**.
 
-Simply apply the provided attributes to any exported field or property in your C# scripts:
+## Usage
 
-### 1. `[MustSet]`
-Use this on single object references (Nodes, Resources, etc.) that **must** be assigned in the Inspector.
+Simply add the namespace and tag your exported fields with the provided attributes.
 
-```csharp
-using FieldValidator;
+### 1. Enforce Single Assignments (`[MustSet]`)
 
-public partial class MyPlayer : CharacterBody2D
-{
-    [Export] [MustSet] 
-    private required Sprite2D _sprite = null!; // Build will fail if this is empty
-}
-```
-
-### 2. `[MemberMustSet]`
-Use this on collections (Arrays or Lists) to ensure that every single slot in the collection has been assigned a value.
+Use `[MustSet]` to ensure a field is not null.
 
 ```csharp
+using Godot;
 using FieldValidator;
 
-public partial class EnemySpawner : Node
+public partial class MyPlayer : Node
 {
-    [Export] [MemberMustSet]
-    private Godot.Collections.Array<PackedScene> _enemyTypes; // Fails if any index is null
+    // If this is null in the Inspector, the game will refuse to start.
+    [Export, MustSet] 
+    public PackedScene BulletPrefab { get; set; }
+
+    [Export, MustSet]
+    public NodePath EnemyPath; 
 }
+
 ```
 
-## 📝 Example Output
+### 2. Enforce Collection Integrity (`[MemberMustSet]`)
+
+Use `[MemberMustSet]` to ensure a collection is not null **AND** that none of its elements are null.
+
+```csharp
+public partial class Inventory : Resource
+{
+    // Fails if the array is null OR if any item inside calls IsInstanceValid() == false
+    [Export, MemberMustSet]
+    public Godot.Collections.Array<ItemResource> StartingItems { get; set; }
+}
+
+```
+
+## Workflow
+
+1. **Automatic Check:** Whenever you build the project (Play), the plugin scans all `.tscn` and `.tres` files.
+* **Pass:** The game starts normally.
+* **Fail:** The build is aborted. The Output panel lists exactly which file, node, and property caused the error.
+
+
+2. **Manual Check:** Open `addons/FieldValidator/FieldValidatorScript.cs` in the Script Editor and go to **File > Run**. This performs a validation scan without trying to launch the game.
+
+## Example Output
 
 When a field is missing, the Godot console will output the following and **block the game from starting**:
 
@@ -70,27 +88,25 @@ Duration: 6.04ms
 ```
 
 
-## ⚙️ Configuration (.fieldignore)
 
-The first time the plugin runs, it creates a `.fieldignore` file in your project root (`res://`). You can add paths to this file (one per line) to skip validation for specific folders or files.
+## Configuration (.fieldignore)
 
-**Example `.fieldignore`:**
+To prevent the validator from scanning specific folders (e.g., third-party addons), create a file named `.fieldignore` in your project root (`res://`).
+
+Format:
+
 ```text
-# Ignore Path
-.godot/
-.vs/
-.vscode/
-res://addons/
-src/
+# Ignore specific folders
+addons/
+test_assets/
+
+# Ignore specific files
+res://Scenes/Draft/WipLevel.tscn
+
 ```
 
-## 🔍 Manual Validation
+*Note: `.godot/`, `.vs/`, and `.vscode/` are ignored by default.*
 
-You can also trigger a full project scan manually at any time:
-1. Open `FieldValidatorScript.cs` in the FileSystem dock.
-2. Right-click it and select **Run**.
-3. View the detailed report in the **Output** bottom panel.
+## License
 
-## 📈 Future Outlook
-This plugin is designed to be extensible. While it currently focuses on null-checks via `MustSet` and `MemberMustSet`, the architecture allows for future attributes such as range validation, string pattern matching, or custom logic constraints.
-
+MIT License.
