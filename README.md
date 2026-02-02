@@ -43,10 +43,10 @@ public partial class MyPlayer : Node
 {
     // If this is null in the Inspector, the game will refuse to start.
     [Export] [MustSet] 
-    public PackedScene BulletPrefab { get; set; }
+    public required PackedScene BulletPrefab { get; set; } = null!;
 
     [Export] [MustSet] 
-    public NodePath EnemyPath; 
+    public required NodePath EnemyPath = null!; 
 }
 
 ```
